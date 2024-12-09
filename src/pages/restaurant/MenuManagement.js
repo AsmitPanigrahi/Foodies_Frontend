@@ -70,18 +70,20 @@ const MenuManagement = () => {
     }
 
     try {
-      console.log('Adding menu item for restaurant:', restaurantId); // Debug log
-      console.log('Form data:', formData); // Debug log
+      console.log('Adding menu item for restaurant:', restaurantId);
+      console.log('Form data:', formData);
       const response = await menuAPI.createItem(restaurantId, formData);
       
-      if (response?.status === 'success') {
-        toast.success('Menu item added successfully');
+      if (response?.data?.status === 'success' || response?.status === 'success') {
         setShowAddForm(false);
-        fetchMenuItems(); // Refresh the menu items list
+        await fetchMenuItems(); // Refresh the menu items list
+      } else {
+        throw new Error(response?.data?.message || 'Failed to add menu item');
       }
     } catch (error) {
       console.error('Error adding menu item:', error);
-      toast.error('Failed to add menu item');
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to add menu item';
+      toast.error(errorMessage);
     }
   };
 

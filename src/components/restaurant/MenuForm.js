@@ -5,9 +5,10 @@ import { menuAPI } from '../../api/menu.api';
 const MenuForm = ({ onSubmit, onCancel, initialData = null, restaurantId, editingItem }) => {
   const [formData, setFormData] = useState({
     name: initialData?.name || '',
-    description: initialData?.description || '',
-    price: initialData?.price || '',
     category: initialData?.category || '',
+    price: Number(initialData?.price || ''),
+    preparationTime: Number(initialData?.preparationTime || ''),
+    description: initialData?.description || '',
     image: initialData?.image || '',
     isVegetarian: initialData?.isVegetarian || false,
     isVegan: initialData?.isVegan || false,
@@ -22,40 +23,74 @@ const MenuForm = ({ onSubmit, onCancel, initialData = null, restaurantId, editin
       fat: ''
     },
     isAvailable: initialData?.isAvailable ?? true,
-    preparationTime: initialData?.preparationTime || 20,
     isPopular: initialData?.isPopular || false,
     isSpecial: initialData?.isSpecial || false,
-    discount: initialData?.discount || 0,
+    discount: initialData?.discount?.percentage || initialData?.discount || 0,
     customization: initialData?.customization || []
   });
+
+  const validateForm = () => {
+    const requiredFields = {
+      name: 'Name',
+      category: 'Category',
+      price: 'Price',
+      preparationTime: 'Preparation Time'
+    };
+
+    const missingFields = [];
+    for (const [field, label] of Object.entries(requiredFields)) {
+      if (!formData[field]) {
+        missingFields.push(label);
+      }
+    }
+
+    if (missingFields.length > 0) {
+      toast.error(`Please fill in the following required fields: ${missingFields.join(', ')}`);
+      return false;
+    }
+
+    const allowedCategories = ['appetizer', 'main course', 'dessert', 'beverage', 'sides'];
+    if (!allowedCategories.includes(formData.category)) {
+      toast.error('Please select a valid category');
+      return false;
+    }
+
+    return true;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    if (!validateForm()) {
+      return;
+    }
+
     try {
       const formDataWithRestaurant = {
         ...formData,
-        restaurant: restaurantId // Ensure restaurant ID is included
+        restaurant: restaurantId,
+        price: Number(formData.price),
+        preparationTime: Number(formData.preparationTime)
       };
 
+      let response;
       if (editingItem) {
-        const response = await menuAPI.updateItem(restaurantId, editingItem._id, formDataWithRestaurant);
-        if (response.status === 'success') {
-          toast.success('Menu item updated successfully');
-          onSubmit(response.data);
-          resetForm();
-        }
+        response = await menuAPI.updateItem(restaurantId, editingItem._id, formDataWithRestaurant);
       } else {
-        const response = await menuAPI.createItem(restaurantId, formDataWithRestaurant);
-        if (response.status === 'success') {
-          toast.success('Menu item added successfully');
-          onSubmit(response.data);
-          resetForm();
-        }
+        response = await menuAPI.createItem(restaurantId, formDataWithRestaurant);
+      }
+
+      if (response?.data?.status === 'success' || response?.status === 'success') {
+        toast.success(`Menu item ${editingItem ? 'updated' : 'added'} successfully`);
+        onSubmit(response.data?.data || response.data);
+        resetForm();
+      } else {
+        throw new Error('Operation failed');
       }
     } catch (error) {
       console.error('Error submitting menu item:', error);
-      toast.error(error.response?.data?.message || 'Failed to save menu item');
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to save menu item';
+      toast.error(errorMessage);
     }
   };
 
@@ -81,13 +116,10 @@ const MenuForm = ({ onSubmit, onCancel, initialData = null, restaurantId, editin
           [nutritionField]: value
         }
       }));
-    } else if (name === 'discount.percentage') {
+    } else if (name === 'discount') {
       setFormData(prev => ({
         ...prev,
-        discount: {
-          ...prev.discount,
-          percentage: Number(value)
-        }
+        discount: Number(value)
       }));
     } else {
       setFormData(prev => ({
@@ -100,9 +132,10 @@ const MenuForm = ({ onSubmit, onCancel, initialData = null, restaurantId, editin
   const resetForm = () => {
     setFormData({
       name: '',
-      description: '',
-      price: '',
       category: '',
+      price: '',
+      preparationTime: '',
+      description: '',
       image: '',
       isVegetarian: false,
       isVegan: false,
@@ -117,7 +150,6 @@ const MenuForm = ({ onSubmit, onCancel, initialData = null, restaurantId, editin
         fat: ''
       },
       isAvailable: true,
-      preparationTime: 20,
       isPopular: false,
       isSpecial: false,
       discount: 0,
@@ -165,10 +197,10 @@ const MenuForm = ({ onSubmit, onCancel, initialData = null, restaurantId, editin
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
           >
             <option value="">Select a category</option>
-            <option value="appetizers">Appetizers</option>
+            <option value="appetizer">Appetizer</option>
             <option value="main course">Main Course</option>
-            <option value="desserts">Desserts</option>
-            <option value="beverages">Beverages</option>
+            <option value="dessert">Dessert</option>
+            <option value="beverage">Beverage</option>
             <option value="sides">Sides</option>
           </select>
         </div>
@@ -185,13 +217,14 @@ const MenuForm = ({ onSubmit, onCancel, initialData = null, restaurantId, editin
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Preparation Time (minutes)</label>
+          <label className="block text-sm font-medium text-gray-700">Preparation Time (minutes) *</label>
           <input
             type="number"
             name="preparationTime"
             value={formData.preparationTime}
             onChange={handleChange}
             min="0"
+            required
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
           />
         </div>
@@ -382,8 +415,8 @@ const MenuForm = ({ onSubmit, onCancel, initialData = null, restaurantId, editin
               <label className="block text-sm font-medium text-gray-700">Percentage</label>
               <input
                 type="number"
-                name="discount.percentage"
-                value={formData.discount.percentage}
+                name="discount"
+                value={formData.discount}
                 onChange={handleChange}
                 min="0"
                 max="100"
@@ -394,8 +427,8 @@ const MenuForm = ({ onSubmit, onCancel, initialData = null, restaurantId, editin
               <label className="inline-flex items-center">
                 <input
                   type="checkbox"
-                  name="discount.isActive"
-                  checked={formData.discount.isActive}
+                  name="discountIsActive"
+                  checked={formData.discountIsActive}
                   onChange={handleChange}
                   className="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                 />
