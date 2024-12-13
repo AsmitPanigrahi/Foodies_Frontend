@@ -53,3 +53,29 @@ export const deleteRestaurant = async (id) => {
         throw error;
     }
 };
+
+export const createRestaurant = async (data) => {
+    try {
+        const formData = new FormData();
+        
+        // Append all restaurant data
+        Object.keys(data).forEach(key => {
+            if (key === 'image' && data[key] instanceof File) {
+                formData.append('image', data[key]);
+            } else if (typeof data[key] === 'object') {
+                formData.append(key, JSON.stringify(data[key]));
+            } else {
+                formData.append(key, data[key]);
+            }
+        });
+
+        const response = await api.post('/restaurants', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+        return response.data;
+    } catch (error) {
+        throw error;
+    }
+};

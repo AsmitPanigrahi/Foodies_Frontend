@@ -11,8 +11,8 @@ const Home = () => {
       <div className="relative bg-gray-900">
         <div className="absolute inset-0">
           <img
-            className="w-full h-full object-cover"
-            src="https://images.unsplash.com/photo-1498837167922-ddd27525d352"
+            className="w-full h-full object-cover" 
+            src="https://images.unsplash.com/photo-1447078806655-40579c2520d6?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
             alt="Food background"
           />
           <div className="absolute inset-0 bg-gray-900 opacity-75"></div>
@@ -36,7 +36,7 @@ const Home = () => {
       </div>
 
       {/* Features Section */}
-      <div className="py-16 bg-white">
+      <div className="py-16 bg-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h2 className="text-3xl font-extrabold text-gray-900">

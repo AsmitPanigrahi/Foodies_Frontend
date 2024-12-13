@@ -19,6 +19,7 @@ const RestaurantDetails = () => {
     const [reviews, setReviews] = useState([]);
     const [createdOrder, setCreatedOrder] = useState(null);
     const [showPaymentForm, setShowPaymentForm] = useState(false);
+    const [selectedItem, setSelectedItem] = useState(null);
     const { cart, addToCart, removeFromCart, updateQuantity, setCart } = useCart();
 
     useEffect(() => {
@@ -39,18 +40,14 @@ const RestaurantDetails = () => {
             setLoading(true);
             setMenuLoading(true);
             setMenuError(null);
-            console.log('Fetching data for restaurant ID:', id);
             
             // First fetch restaurant details
             const restaurantRes = await getRestaurantById(id);
-            console.log('Restaurant response:', restaurantRes);
             setRestaurant(restaurantRes.data.restaurant);
             
             // Then fetch menu items using customer API
             try {
-                console.log('Fetching menu items for restaurant:', id);
                 const menuRes = await customerMenuAPI.getRestaurantMenu(id);
-                console.log('Menu response:', menuRes);
                 
                 // Check if menuRes.data is an array (backward compatibility)
                 const menuItems = Array.isArray(menuRes.data) 
@@ -127,26 +124,16 @@ const RestaurantDetails = () => {
                 paymentMethod: 'card'  // TODO: Get from user input
             };
 
-            console.log('Creating order with data:', orderRequestData);
-
             // Create order first
             const orderResponse = await orderAPI.create(orderRequestData);
-            console.log('Full order response:', orderResponse);
 
             const createdOrderData = orderResponse?.data?.data?.order;
-            console.log('Extracted order data:', createdOrderData);
 
             if (!createdOrderData?._id) {
                 console.error('Invalid order response structure:', orderResponse);
                 throw new Error('Invalid order response - missing order ID');
             }
-
-            // First set the order data
-            console.log('Setting created order with:', createdOrderData);
             setCreatedOrder(createdOrderData);
-            
-            // Then show the payment form
-            console.log('Showing payment form');
             setShowPaymentForm(true);
             
         } catch (error) {
@@ -156,7 +143,6 @@ const RestaurantDetails = () => {
     };
 
     const handlePaymentSuccess = async (paymentIntent) => {
-        console.log('Payment success with intent:', paymentIntent);
         toast.success('Order placed and payment processed successfully!');
         setCart([]); // Clear cart after successful order
         setShowPaymentForm(false);
@@ -165,7 +151,6 @@ const RestaurantDetails = () => {
 
     const handlePaymentCancel = async () => {
         if (createdOrder?._id) {
-            console.log('Cancelling order:', createdOrder._id);
             try {
                 await orderAPI.cancel(createdOrder._id);
                 toast.success('Order cancelled');
@@ -179,10 +164,8 @@ const RestaurantDetails = () => {
     };
 
     const renderPaymentForm = () => {
-        console.log('Rendering payment form. Order:', createdOrder, 'Show:', showPaymentForm);
         
         if (!showPaymentForm || !createdOrder) {
-            console.log('Conditions not met for payment form. showPaymentForm:', showPaymentForm, 'createdOrder:', createdOrder);
             return null;
         }
 
@@ -287,37 +270,76 @@ const RestaurantDetails = () => {
                                             <h2 className="text-xl font-semibold mb-4">{category}</h2>
                                             <div className="grid gap-4">
                                                 {items.map((item) => (
-                                                    <div key={item._id} className="bg-white rounded-lg shadow p-4 flex justify-between items-center">
-                                                        <div className="flex gap-4">
+                                                    <div key={item._id} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden">
+                                                        <div className="flex">
                                                             {item.image && (
-                                                                <img 
-                                                                    src={item.image} 
-                                                                    alt={item.name}
-                                                                    className="w-24 h-24 object-cover rounded-lg"
-                                                                />
+                                                                <div className="relative w-32 h-32 flex-shrink-0">
+                                                                    <img 
+                                                                        src={item.image} 
+                                                                        alt={item.name}
+                                                                        className="w-full h-full object-cover"
+                                                                        onError={(e) => {
+                                                                            e.target.src = '/default-food.jpg';
+                                                                            e.target.onerror = null;
+                                                                        }}
+                                                                    />
+                                                                    {item.discount > 0 && (
+                                                                        <div className="absolute top-0 right-0 bg-red-500 text-white px-2 py-1 m-1 rounded-md text-xs font-semibold">
+                                                                            {item.discount}% OFF
+                                                                        </div>
+                                                                    )}
+                                                                </div>
                                                             )}
-                                                            <div>
-                                                                <h3 className="font-semibold text-lg">{item.name}</h3>
-                                                                <p className="text-gray-600 text-sm">{item.description}</p>
-                                                                <p className="text-primary font-semibold mt-2">₹{item.price}</p>
-                                                                {item.isAvailable === false && (
-                                                                    <p className="text-red-500 text-sm mt-1">Currently unavailable</p>
-                                                                )}
+                                                            <div className="flex-1 p-4">
+                                                                <div className="flex justify-between items-start mb-2">
+                                                                    <h3 className="text-xl font-semibold text-gray-800">{item.name}</h3>
+                                                                    <span className="text-lg font-bold text-primary">₹{item.price}</span>
+                                                                </div>
+                                                                
+                                                                <p className="text-gray-600 text-sm mb-3 line-clamp-2">{item.description || 'No description available'}</p>
+                                                                
+                                                                <div className="flex flex-wrap gap-2 mb-3">
+                                                                    {item.isVegetarian && (
+                                                                        <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full flex items-center">
+                                                                            <span className="mr-1">🥬</span>
+                                                                            Veg
+                                                                        </span>
+                                                                    )}
+                                                                    {item.spicyLevel > 0 && (
+                                                                        <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full flex items-center">
+                                                                            <span className="mr-1">{"🌶️".repeat(Math.min(item.spicyLevel, 3))}</span>
+                                                                            Spicy
+                                                                        </span>
+                                                                    )}
+                                                                    {item.isGlutenFree && (
+                                                                        <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full flex items-center">
+                                                                            <span className="mr-1">🌾</span>
+                                                                            Gluten-Free
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+
+                                                                <div className="flex justify-end mb-2">
+                                                                    <button
+                                                                        onClick={() => addToCart(item, restaurant._id)}
+                                                                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg transition-colors duration-200 flex items-center gap-2"
+                                                                    >
+                                                                        <span>Add</span>
+                                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                                            <path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.632 14 6.414 14H15a1 1 0 000-2H6.414l1-1H14a1 1 0 00.894-.553l3-6A1 1 0 0017 3H6.28l-.31-1.243A1 1 0 005 1H3zM16 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM6.5 18a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" />
+                                                                        </svg>
+                                                                    </button>
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                        <button
-                                                            onClick={() => addToCart(item, restaurant._id)}
-                                                            className={`p-3 rounded-full transition-all transform ${
-                                                                item.isAvailable === false 
-                                                                ? 'bg-gray-300 cursor-not-allowed'
-                                                                : 'bg-primary text-white hover:bg-primary-dark hover:scale-110'
-                                                            }`}
-                                                            disabled={item.isAvailable === false}
-                                                            title="Add to Cart"
-                                                            aria-label="Add to Cart"
-                                                        >
-                                                            🛒
-                                                        </button>
+                                                        <div className="text-center border-t py-2">
+                                                            <button
+                                                                onClick={() => setSelectedItem(item)}
+                                                                className="text-sm text-indigo-600 hover:text-indigo-800 transition-colors duration-200"
+                                                            >
+                                                                More Info
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 ))}
                                             </div>
@@ -408,6 +430,171 @@ const RestaurantDetails = () => {
 
             {/* Add payment form modal */}
             {renderPaymentForm()}
+
+            {/* Item Details Modal */}
+            {selectedItem && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
+                        <div className="flex justify-between items-start mb-4">
+                            <h2 className="text-2xl font-bold text-gray-900">{selectedItem.name}</h2>
+                            <button
+                                onClick={() => setSelectedItem(null)}
+                                className="text-gray-400 hover:text-gray-500"
+                            >
+                                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div className="space-y-4">
+                            {/* Basic Info */}
+                            <div>
+                                <h3 className="text-lg font-medium text-gray-900 mb-2">Basic Information</h3>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-500">Price</p>
+                                        <p className="mt-1">${selectedItem.price}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-500">Category</p>
+                                        <p className="mt-1">{selectedItem.category}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-500">Preparation Time</p>
+                                        <p className="mt-1">{selectedItem.preparationTime} minutes</p>
+                                    </div>
+                                    {selectedItem.discount > 0 && (
+                                        <div>
+                                            <p className="text-sm font-medium text-gray-500">Discount</p>
+                                            <p className="mt-1">{selectedItem.discount}%</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Description */}
+                            <div>
+                                <h3 className="text-lg font-medium text-gray-900 mb-2">Description</h3>
+                                <p className="text-gray-600">{selectedItem.description || 'No description available'}</p>
+                            </div>
+
+                            {/* Dietary Information */}
+                            <div>
+                                <h3 className="text-lg font-medium text-gray-900 mb-2">Dietary Information</h3>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="flex items-center">
+                                        <span className={`mr-2 ${selectedItem.isVegetarian ? 'text-green-500' : 'text-gray-400'}`}>
+                                            {selectedItem.isVegetarian ? '✓' : '✗'}
+                                        </span>
+                                        <span>Vegetarian</span>
+                                    </div>
+                                    <div className="flex items-center">
+                                        <span className={`mr-2 ${selectedItem.isVegan ? 'text-green-500' : 'text-gray-400'}`}>
+                                            {selectedItem.isVegan ? '✓' : '✗'}
+                                        </span>
+                                        <span>Vegan</span>
+                                    </div>
+                                    <div className="flex items-center">
+                                        <span className={`mr-2 ${selectedItem.isGlutenFree ? 'text-green-500' : 'text-gray-400'}`}>
+                                            {selectedItem.isGlutenFree ? '✓' : '✗'}
+                                        </span>
+                                        <span>Gluten Free</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Spicy Level */}
+                            {selectedItem.spicyLevel > 0 && (
+                                <div>
+                                    <h3 className="text-lg font-medium text-gray-900 mb-2">Spicy Level</h3>
+                                    <div className="flex items-center space-x-1">
+                                        {[...Array(5)].map((_, index) => (
+                                            <span
+                                                key={index}
+                                                className={`text-2xl ${
+                                                    index < selectedItem.spicyLevel ? 'text-red-500' : 'text-gray-300'
+                                                }`}
+                                            >
+                                                🌶️
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Ingredients */}
+                            {selectedItem.ingredients && selectedItem.ingredients.length > 0 && (
+                                <div>
+                                    <h3 className="text-lg font-medium text-gray-900 mb-2">Ingredients</h3>
+                                    <div className="flex flex-wrap gap-2">
+                                        {selectedItem.ingredients.map((ingredient, index) => (
+                                            <span
+                                                key={index}
+                                                className="bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-sm"
+                                            >
+                                                {ingredient}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Allergens */}
+                            {selectedItem.allergens && selectedItem.allergens.length > 0 && (
+                                <div>
+                                    <h3 className="text-lg font-medium text-gray-900 mb-2">Allergens</h3>
+                                    <div className="flex flex-wrap gap-2">
+                                        {selectedItem.allergens.map((allergen, index) => (
+                                            <span
+                                                key={index}
+                                                className="bg-red-100 text-red-800 px-2 py-1 rounded-full text-sm"
+                                            >
+                                                {allergen}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Nutritional Information */}
+                            {selectedItem.nutritionalInfo && (
+                                Object.values(selectedItem.nutritionalInfo).some(value => value) && (
+                                    <div>
+                                        <h3 className="text-lg font-medium text-gray-900 mb-2">Nutritional Information</h3>
+                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                            {selectedItem.nutritionalInfo.calories && (
+                                                <div>
+                                                    <p className="text-sm font-medium text-gray-500">Calories</p>
+                                                    <p className="mt-1">{selectedItem.nutritionalInfo.calories}</p>
+                                                </div>
+                                            )}
+                                            {selectedItem.nutritionalInfo.protein && (
+                                                <div>
+                                                    <p className="text-sm font-medium text-gray-500">Protein</p>
+                                                    <p className="mt-1">{selectedItem.nutritionalInfo.protein}g</p>
+                                                </div>
+                                            )}
+                                            {selectedItem.nutritionalInfo.carbohydrates && (
+                                                <div>
+                                                    <p className="text-sm font-medium text-gray-500">Carbohydrates</p>
+                                                    <p className="mt-1">{selectedItem.nutritionalInfo.carbohydrates}g</p>
+                                                </div>
+                                            )}
+                                            {selectedItem.nutritionalInfo.fats && (
+                                                <div>
+                                                    <p className="text-sm font-medium text-gray-500">Fats</p>
+                                                    <p className="mt-1">{selectedItem.nutritionalInfo.fats}g</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

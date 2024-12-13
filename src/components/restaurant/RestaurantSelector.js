@@ -15,11 +15,9 @@ const RestaurantSelector = ({ onRestaurantSelect }) => {
   const fetchRestaurants = async () => {
     try {
       const response = await getRestaurantDashboard();
-      console.log('Restaurant dashboard response:', response); // Debug log
       
       // Check if response has the restaurant data
       const restaurantData = response?.data?.restaurant ? [response.data.restaurant] : [];
-      console.log('Restaurant data:', restaurantData); // Debug log
       
       setRestaurants(restaurantData);
 
@@ -27,7 +25,6 @@ const RestaurantSelector = ({ onRestaurantSelect }) => {
       if (restaurantData.length === 1 && !hasAutoSelected.current) {
         const restaurant = restaurantData[0];
         const restaurantId = restaurant._id;
-        console.log('Auto-selecting restaurant:', { id: restaurantId, restaurant }); // Debug log
         setSelectedRestaurant(restaurantId);
         onRestaurantSelect(restaurantId);
         hasAutoSelected.current = true;
@@ -43,7 +40,6 @@ const RestaurantSelector = ({ onRestaurantSelect }) => {
 
   const handleRestaurantChange = (e) => {
     const restaurantId = e.target.value;
-    console.log('Restaurant selected:', restaurantId); // Debug log
     setSelectedRestaurant(restaurantId);
     onRestaurantSelect(restaurantId);
   };

@@ -2,13 +2,20 @@ import React, { useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { menuAPI } from '../../api/menu.api';
 
+const VALID_CATEGORIES = [
+  'appetizers',
+  'main courses',
+  'desserts',
+  'beverages',
+  'sides'
+];
+
 const MenuForm = ({ onSubmit, onCancel, initialData = null, restaurantId, editingItem }) => {
   const [formData, setFormData] = useState({
     name: initialData?.name || '',
-    category: initialData?.category || '',
-    price: Number(initialData?.price || ''),
-    preparationTime: Number(initialData?.preparationTime || ''),
     description: initialData?.description || '',
+    price: initialData?.price || '',
+    category: initialData?.category || '',
     image: initialData?.image || '',
     isVegetarian: initialData?.isVegetarian || false,
     isVegan: initialData?.isVegan || false,
@@ -23,74 +30,60 @@ const MenuForm = ({ onSubmit, onCancel, initialData = null, restaurantId, editin
       fat: ''
     },
     isAvailable: initialData?.isAvailable ?? true,
+    preparationTime: initialData?.preparationTime || 20,
     isPopular: initialData?.isPopular || false,
     isSpecial: initialData?.isSpecial || false,
-    discount: initialData?.discount?.percentage || initialData?.discount || 0,
+    discount: initialData?.discount || 0,
     customization: initialData?.customization || []
   });
-
-  const validateForm = () => {
-    const requiredFields = {
-      name: 'Name',
-      category: 'Category',
-      price: 'Price',
-      preparationTime: 'Preparation Time'
-    };
-
-    const missingFields = [];
-    for (const [field, label] of Object.entries(requiredFields)) {
-      if (!formData[field]) {
-        missingFields.push(label);
-      }
-    }
-
-    if (missingFields.length > 0) {
-      toast.error(`Please fill in the following required fields: ${missingFields.join(', ')}`);
-      return false;
-    }
-
-    const allowedCategories = ['appetizer', 'main course', 'dessert', 'beverage', 'sides'];
-    if (!allowedCategories.includes(formData.category)) {
-      toast.error('Please select a valid category');
-      return false;
-    }
-
-    return true;
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!validateForm()) {
-      return;
-    }
-
     try {
-      const formDataWithRestaurant = {
+      // Validate required fields
+      const requiredFields = {
+        name: 'Name',
+        price: 'Price',
+        category: 'Category',
+        preparationTime: 'Preparation Time'
+      };
+
+      // Check for missing required fields
+      const missingFields = Object.entries(requiredFields)
+        .filter(([key]) => !formData[key])
+        .map(([, label]) => label);
+
+      if (missingFields.length > 0) {
+        toast.error(`Please fill in the following required fields: ${missingFields.join(', ')}`);
+        return;
+      }
+
+      // Prepare form data
+      const processedData = {
         ...formData,
-        restaurant: restaurantId,
-        price: Number(formData.price),
-        preparationTime: Number(formData.preparationTime)
+        price: parseFloat(formData.price),
+        preparationTime: parseInt(formData.preparationTime),
+        discount: parseInt(formData.discount) || 0,
+        restaurant: restaurantId
       };
 
       let response;
-      if (editingItem) {
-        response = await menuAPI.updateItem(restaurantId, editingItem._id, formDataWithRestaurant);
+      if (editingItem && editingItem._id) {
+        response = await menuAPI.updateItem(restaurantId, editingItem._id, processedData);
       } else {
-        response = await menuAPI.createItem(restaurantId, formDataWithRestaurant);
+        response = await menuAPI.createItem(restaurantId, processedData);
       }
 
-      if (response?.data?.status === 'success' || response?.status === 'success') {
-        toast.success(`Menu item ${editingItem ? 'updated' : 'added'} successfully`);
-        onSubmit(response.data?.data || response.data);
-        resetForm();
-      } else {
-        throw new Error('Operation failed');
+      if (response) {
+        toast.success(editingItem ? 'Menu item updated successfully' : 'Menu item added successfully');
+        if (onSubmit) {
+          onSubmit(response.data || response);
+        }
       }
     } catch (error) {
-      console.error('Error submitting menu item:', error);
-      const errorMessage = error.response?.data?.message || error.message || 'Failed to save menu item';
-      toast.error(errorMessage);
+      console.error('Error submitting form:', error);
+      toast.error(error.response?.data?.message || 'Failed to save menu item');
     }
   };
 
@@ -98,44 +91,33 @@ const MenuForm = ({ onSubmit, onCancel, initialData = null, restaurantId, editin
     const { name, value, type, checked } = e.target;
     
     if (type === 'checkbox') {
+      setFormData(prev => ({ ...prev, [name]: checked }));
+    } else if (name.includes('.')) {
+      // Handle nested objects (e.g., nutritionalInfo.calories)
+      const [parent, child] = name.split('.');
       setFormData(prev => ({
         ...prev,
-        [name]: checked
+        [parent]: {
+          ...prev[parent],
+          [child]: value
+        }
       }));
     } else if (name === 'ingredients' || name === 'allergens') {
       setFormData(prev => ({
         ...prev,
         [name]: value.split(',').map(item => item.trim())
       }));
-    } else if (name.startsWith('nutritionalInfo.')) {
-      const nutritionField = name.split('.')[1];
-      setFormData(prev => ({
-        ...prev,
-        nutritionalInfo: {
-          ...prev.nutritionalInfo,
-          [nutritionField]: value
-        }
-      }));
-    } else if (name === 'discount') {
-      setFormData(prev => ({
-        ...prev,
-        discount: Number(value)
-      }));
     } else {
-      setFormData(prev => ({
-        ...prev,
-        [name]: value
-      }));
+      setFormData(prev => ({ ...prev, [name]: value }));
     }
   };
 
   const resetForm = () => {
     setFormData({
       name: '',
-      category: '',
-      price: '',
-      preparationTime: '',
       description: '',
+      price: '',
+      category: '',
       image: '',
       isVegetarian: false,
       isVegan: false,
@@ -150,6 +132,7 @@ const MenuForm = ({ onSubmit, onCancel, initialData = null, restaurantId, editin
         fat: ''
       },
       isAvailable: true,
+      preparationTime: 20,
       isPopular: false,
       isSpecial: false,
       discount: 0,
@@ -158,9 +141,8 @@ const MenuForm = ({ onSubmit, onCancel, initialData = null, restaurantId, editin
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Basic Information */}
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700">Name *</label>
           <input
@@ -168,8 +150,8 @@ const MenuForm = ({ onSubmit, onCancel, initialData = null, restaurantId, editin
             name="name"
             value={formData.name}
             onChange={handleChange}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
             required
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
           />
         </div>
 
@@ -180,10 +162,10 @@ const MenuForm = ({ onSubmit, onCancel, initialData = null, restaurantId, editin
             name="price"
             value={formData.price}
             onChange={handleChange}
-            required
             min="0"
             step="0.01"
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            required
           />
         </div>
 
@@ -193,15 +175,15 @@ const MenuForm = ({ onSubmit, onCancel, initialData = null, restaurantId, editin
             name="category"
             value={formData.category}
             onChange={handleChange}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
             required
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
           >
             <option value="">Select a category</option>
-            <option value="appetizer">Appetizer</option>
-            <option value="main course">Main Course</option>
-            <option value="dessert">Dessert</option>
-            <option value="beverage">Beverage</option>
-            <option value="sides">Sides</option>
+            {VALID_CATEGORIES.map(category => (
+              <option key={category} value={category}>
+                {category}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -212,20 +194,19 @@ const MenuForm = ({ onSubmit, onCancel, initialData = null, restaurantId, editin
             name="image"
             value={formData.image}
             onChange={handleChange}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Preparation Time (minutes) *</label>
+          <label className="block text-sm font-medium text-gray-700">Preparation Time (minutes)</label>
           <input
             type="number"
             name="preparationTime"
             value={formData.preparationTime}
             onChange={handleChange}
             min="0"
-            required
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
           />
         </div>
 
@@ -237,7 +218,7 @@ const MenuForm = ({ onSubmit, onCancel, initialData = null, restaurantId, editin
             onChange={handleChange}
             required
             rows="3"
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
           />
         </div>
 
@@ -301,7 +282,7 @@ const MenuForm = ({ onSubmit, onCancel, initialData = null, restaurantId, editin
             name="ingredients"
             value={formData.ingredients.join(', ')}
             onChange={handleChange}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
           />
         </div>
 
@@ -312,7 +293,7 @@ const MenuForm = ({ onSubmit, onCancel, initialData = null, restaurantId, editin
             name="allergens"
             value={formData.allergens.join(', ')}
             onChange={handleChange}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
           />
         </div>
 
@@ -328,7 +309,7 @@ const MenuForm = ({ onSubmit, onCancel, initialData = null, restaurantId, editin
                 value={formData.nutritionalInfo.calories}
                 onChange={handleChange}
                 min="0"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
               />
             </div>
             <div>
@@ -340,7 +321,7 @@ const MenuForm = ({ onSubmit, onCancel, initialData = null, restaurantId, editin
                 onChange={handleChange}
                 min="0"
                 step="0.1"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
               />
             </div>
             <div>
@@ -352,7 +333,7 @@ const MenuForm = ({ onSubmit, onCancel, initialData = null, restaurantId, editin
                 onChange={handleChange}
                 min="0"
                 step="0.1"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
               />
             </div>
             <div>
@@ -364,7 +345,7 @@ const MenuForm = ({ onSubmit, onCancel, initialData = null, restaurantId, editin
                 onChange={handleChange}
                 min="0"
                 step="0.1"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
               />
             </div>
           </div>
@@ -412,7 +393,7 @@ const MenuForm = ({ onSubmit, onCancel, initialData = null, restaurantId, editin
           <h3 className="text-lg font-medium text-gray-900">Discount</h3>
           <div className="mt-2 flex items-center space-x-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Percentage</label>
+              <label className="block text-sm font-medium text-gray-700">Discount (%)</label>
               <input
                 type="number"
                 name="discount"
@@ -420,20 +401,8 @@ const MenuForm = ({ onSubmit, onCancel, initialData = null, restaurantId, editin
                 onChange={handleChange}
                 min="0"
                 max="100"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
               />
-            </div>
-            <div className="flex items-center">
-              <label className="inline-flex items-center">
-                <input
-                  type="checkbox"
-                  name="discountIsActive"
-                  checked={formData.discountIsActive}
-                  onChange={handleChange}
-                  className="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                />
-                <span className="ml-2">Active</span>
-              </label>
             </div>
           </div>
         </div>

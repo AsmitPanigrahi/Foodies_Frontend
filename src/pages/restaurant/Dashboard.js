@@ -4,6 +4,7 @@ import { orderAPI } from '../../utils/api';
 import { menuAPI } from '../../api/menu.api';
 import { getRestaurantDashboard } from '../../api/restaurant.api';
 import toast from 'react-hot-toast';
+import { Link } from 'react-router-dom';
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -66,7 +67,6 @@ const Dashboard = () => {
 
       // Fetch menu items using restaurant ID
       const menuRes = await menuAPI.getItems(restaurantId);
-      console.log('Menu response:', menuRes);
       // Use the results field for total menu items
       const totalMenuItems = menuRes?.results || 0;
 
@@ -82,6 +82,23 @@ const Dashboard = () => {
       setLoading(false);
     }
   };
+
+  if (!restaurantDetails) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-100px)]">
+        <div className="text-center">
+          <h2 className="text-2xl font-semibold text-gray-900 mb-4">Welcome to Foodies!</h2>
+          <p className="text-gray-600 mb-8">You haven't created a restaurant profile yet.</p>
+          <Link
+            to="/restaurant/profile"
+            className="inline-flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
+          >
+            Create Restaurant Profile
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

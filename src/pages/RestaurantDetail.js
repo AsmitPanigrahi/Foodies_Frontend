@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { getRestaurantById } from '../api/restaurant.api';
+import { getImageUrl } from '../utils/imageUtils';
 
 const RestaurantDetail = () => {
     const { id } = useParams();
@@ -86,9 +87,12 @@ const RestaurantDetail = () => {
                 <div className="bg-white rounded-lg shadow-lg overflow-hidden">
                     <div className="relative h-64 md:h-96">
                         <img
-                            src={restaurant.image || 'https://via.placeholder.com/800x400'}
+                            src={getImageUrl(restaurant.image)}
                             alt={restaurant.name}
                             className="w-full h-full object-cover"
+                            onError={(e) => {
+                                e.target.src = 'https://via.placeholder.com/800x400';
+                            }}
                         />
                     </div>
                     

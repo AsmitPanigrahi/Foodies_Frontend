@@ -48,7 +48,6 @@ const OrderManagement = () => {
 
   const handleStatusUpdate = async (orderId, newStatus) => {
     try {
-      console.log('Starting status update:', { orderId, newStatus });
       
       // Map frontend status to backend status
       const statusMapping = {
@@ -59,10 +58,8 @@ const OrderManagement = () => {
       };
 
       const backendStatus = statusMapping[newStatus] || newStatus;
-      console.log('Mapped status:', { frontend: newStatus, backend: backendStatus });
       
       const response = await orderAPI.updateStatus(orderId, backendStatus);
-      console.log('Status update response:', response);
       
       if (response.data?.status === 'success') {
         toast.success(`Order ${newStatus === 'confirmed' ? 'confirmed' : 
@@ -71,7 +68,6 @@ const OrderManagement = () => {
           newStatus === 'delivered' ? 'has been delivered' : 'updated'}`);
           
         // Refresh orders list
-        console.log('Refreshing orders after status update');
         await fetchOrders();
       } else {
         console.error('Status update failed:', response.data);

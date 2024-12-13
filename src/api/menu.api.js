@@ -5,15 +5,22 @@ export const menuAPI = {
   getItems: async (restaurantId) => {
     try {
       const endpoint = `/restaurants/${restaurantId}/menu`;
-      console.log('Making API request to:', endpoint);
+     
       const response = await api.get(endpoint);
-      console.log('Menu API Response:', response);
-      return response.data;
+      
+      
+      if (response.data) {
+       
+        return response.data;
+      } else {
+        console.warn('Menu API: No data in response');
+        throw new Error('No data received from server');
+      }
     } catch (error) {
-      console.error('Error getting menu items:', {
+      console.error('Menu API: Error getting menu items:', {
         message: error.message,
+        response: error.response?.data,
         status: error.response?.status,
-        data: error.response?.data,
         endpoint: `/restaurants/${restaurantId}/menu`,
         config: error.config
       });
@@ -25,15 +32,21 @@ export const menuAPI = {
   createItem: async (restaurantId, menuItemData) => {
     try {
       const endpoint = `/restaurants/${restaurantId}/menu`;
-      console.log('Making API request to:', endpoint);
+      
+      
       const response = await api.post(endpoint, menuItemData);
-      console.log('Menu API Response:', response);
-      return response.data;
+      
+      if (response.data) {
+        return response.data;
+      } else {
+        console.warn('Menu API: No data in response');
+        throw new Error('No data received from server');
+      }
     } catch (error) {
-      console.error('Error creating menu item:', {
+      console.error('Menu API: Error creating menu item:', {
         message: error.message,
+        response: error.response?.data,
         status: error.response?.status,
-        data: error.response?.data,
         endpoint: `/restaurants/${restaurantId}/menu`,
         config: error.config
       });
@@ -44,16 +57,29 @@ export const menuAPI = {
   // Update a menu item
   updateItem: async (restaurantId, itemId, menuItemData) => {
     try {
+      if (!itemId) {
+        throw new Error('Menu item ID is required for update');
+      }
+      
       const endpoint = `/restaurants/${restaurantId}/menu/${itemId}`;
-      console.log('Making API request to:', endpoint);
-      const response = await api.put(endpoint, menuItemData);
-      console.log('Menu API Response:', response);
-      return response.data;
+      
+      const response = await api.patch(endpoint, menuItemData);
+      
+      if (response.data) {
+        return response.data;
+      }
+      
+      // If no data but successful status, return success
+      if (response.status >= 200 && response.status < 300) {
+        return { status: 'success' };
+      }
+      
+      throw new Error('Unexpected response from server');
     } catch (error) {
-      console.error('Error updating menu item:', {
+      console.error('Menu API: Error updating menu item:', {
         message: error.message,
+        response: error.response?.data,
         status: error.response?.status,
-        data: error.response?.data,
         endpoint: `/restaurants/${restaurantId}/menu/${itemId}`,
         config: error.config
       });
@@ -65,15 +91,25 @@ export const menuAPI = {
   deleteItem: async (restaurantId, itemId) => {
     try {
       const endpoint = `/restaurants/${restaurantId}/menu/${itemId}`;
-      console.log('Making API request to:', endpoint);
+      
       const response = await api.delete(endpoint);
-      console.log('Menu API Response:', response);
-      return response.data;
+      
+      // For DELETE requests, a 204 response is success with no content
+      if (response.status === 204) {
+        return { status: 'success' };
+      }
+      
+      // For other successful responses, return the data
+      if (response.data) {
+        return response.data;
+      }
+      
+      throw new Error('Unexpected response from server');
     } catch (error) {
-      console.error('Error deleting menu item:', {
+      console.error('Menu API: Error deleting menu item:', {
         message: error.message,
+        response: error.response?.data,
         status: error.response?.status,
-        data: error.response?.data,
         endpoint: `/restaurants/${restaurantId}/menu/${itemId}`,
         config: error.config
       });
@@ -83,17 +119,3 @@ export const menuAPI = {
 };
 
 export default menuAPI;
-
-
-
-
-
-
-
-
-
-
-
-
-
-

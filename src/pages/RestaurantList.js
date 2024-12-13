@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { getAllRestaurants } from '../api/restaurant.api';
+import { getImageUrl } from '../utils/imageUtils';
 
 const RestaurantList = () => {
     const [restaurants, setRestaurants] = useState([]);
@@ -74,9 +75,12 @@ const RestaurantList = () => {
                     >
                         <div className="relative h-48">
                             <img
-                                src={restaurant.image || 'https://via.placeholder.com/400x300'}
+                                src={getImageUrl(restaurant.image)}
                                 alt={restaurant.name}
                                 className="w-full h-full object-cover rounded-t-lg"
+                                onError={(e) => {
+                                    e.target.src = 'https://via.placeholder.com/400x300';
+                                }}
                             />
                         </div>
                         <div className="p-4">

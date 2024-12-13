@@ -26,9 +26,7 @@ const Login = () => {
     setLoading(true);
 
     try {
-      console.log('Attempting login with:', formData);
       const response = await authAPI.login(formData);
-      console.log('Login response:', response.data);
 
       if (response.data.status === 'success' && response.data.token) {
         login(response.data.token, response.data.data.user);

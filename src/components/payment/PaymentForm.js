@@ -22,7 +22,6 @@ const PaymentForm = ({ orderId, amount, onSuccess }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Payment form submitted with orderId:', orderId, 'amount:', amount);
 
     if (!stripe || !elements) {
       console.error('Stripe.js has not loaded');
@@ -45,15 +44,11 @@ const PaymentForm = ({ orderId, amount, onSuccess }) => {
       setProcessing(true);
       setError(null);
 
-      console.log('Creating payment intent with:', { amount: Math.round(amount * 100), orderId });
-
       // Create payment intent
       const response = await createPaymentIntent({
         amount: Math.round(amount * 100), // Convert to cents and ensure it's an integer
         orderId
       });
-
-      console.log('Payment intent response:', response);
 
       if (!response?.clientSecret) {
         throw new Error('Failed to create payment intent');
@@ -75,8 +70,6 @@ const PaymentForm = ({ orderId, amount, onSuccess }) => {
       if (stripeError) {
         throw new Error(stripeError.message);
       }
-
-      console.log('Payment confirmed:', paymentIntent);
 
       if (paymentIntent.status === 'succeeded') {
         toast.success('Payment successful!');
