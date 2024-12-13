@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -6,19 +6,28 @@ const Navbar = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
+  useEffect(() => {
+    // Debug logging
+    console.log('Navbar mounted, user state:', user);
+  }, [user]);
+
   const handleLogout = () => {
+    console.log('Logout clicked'); // Debug log
     logout();
     navigate('/login');
   };
 
-  // Only show navbar for customers, not for restaurant owners or admins
-  if (user && (user.role === 'restaurant-owner' || user.role === 'admin')) {
+  // Hide navbar only for restaurant owners and admins
+  if (user?.role === 'restaurant-owner' || user?.role === 'admin') {
     return null;
   }
 
+  // Debug log when navbar is rendered
+  console.log('Rendering navbar, user:', user ? 'logged in' : 'not logged in');
+
   return (
     <nav
-      className="bg-gradient-to-r from-gray-50 via-gray-100 to-gray-200 shadow-lg top-0 left-0 w-full z-50"
+      className="bg-gradient-to-r from-gray-50 via-gray-100 to-gray-200 shadow-lg sticky top-0 left-0 w-full z-50"
     >
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex justify-between h-16 items-center">
